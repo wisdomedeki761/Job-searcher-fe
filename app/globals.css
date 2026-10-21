@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- theme tokens ----------
+   Every palette color is an RGB triplet consumed as
+   `rgb(var(--c-x) / <alpha-value>)` by tailwind.config.ts, so dark mode is
+   just a `.dark` class on <html> swapping these variables. Neumorphic
+   shadows reference var() stops too, so raised/inset shadows re-tint for
+   dark surfaces automatically. */
+:root {
+  color-scheme: light;
+
+  --c-base: 238 241 247; /* #eef1f7 */
+  --c-surface: 232 235 243; /* #e8ebf3 */
+  --c-ink: 43 48 64; /* #2b3040 */
+  --c-muted: 123 130 150; /* #7b8296 */
+  --c-accent: 99 102 241; /* #6366f1 */
+  --c-accent-soft: 129 140 248; /* #818cf8 */
+  --c-mint: 52 211 153; /* #34d399 */
+  --c-peach: 251 146 60; /* #fb923c */
+  --c-rose: 251 113 133; /* #fb7185 */
+
+  --neu-dark: #c9cede;
+  --neu-light: #ffffff;
+  --neu-raised: 9px 9px 20px var(--neu-dark), -9px -9px 20px var(--neu-light);
+  --neu-sm: 4px 4px 10px var(--neu-dark), -4px -4px 10px var(--neu-light);
+  --neu-inset: inset 5px 5px 12px var(--neu-dark), inset -5px -5px 12px var(--neu-light);
+  --neu-press: inset 3px 3px 8px var(--neu-dark), inset -3px -3px 8px var(--neu-light);
+
+  --shadow-glass: 0 8px 32px rgba(99, 102, 241, 0.12);
+  --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.35);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --c-base: 15 17 24; /* #0f1118 */
+  --c-surface: 27 30 42; /* #1b1e2a */
+  --c-ink: 230 233 242; /* #e6e9f2 */
+  --c-muted: 140 147 167; /* #8c93a7 */
+  --c-accent: 129 140 248; /* brighter indigo for dark surfaces */
+  --c-accent-soft: 165 180 252; /* #a5b4fc */
+  --c-mint: 52 211 153;
+  --c-peach: 251 146 60;
+  --c-rose: 251 113 133;
+
+  /* Neumorphism on dark: deep drop shadow + faint top-left rim light */
+  --neu-dark: rgba(0, 0, 0, 0.6);
+  --neu-light: rgba(255, 255, 255, 0.05);
+
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 24px rgba(129, 140, 248, 0.4);
+}
+
+/* ---------- base ---------- */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-base text-ink antialiased;
+  /* soft gradient + blurred blobs behind everything */
+  background-image:
+    radial-gradient(40rem 40rem at 85% -10%, rgba(129, 140, 248, 0.22), transparent 60%),
+    radial-gradient(32rem 32rem at -10% 30%, rgba(52, 211, 153, 0.16), transparent 60%),
+    radial-gradient(30rem 30rem at 60% 110%, rgba(251, 146, 60, 0.12), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Darker canvas, same blobs but gentler so they glow instead of wash out */
+.dark body {
+  background-image:
+    radial-gradient(40rem 40rem at 85% -10%, rgba(129, 140, 248, 0.16), transparent 60%),
+    radial-gradient(32rem 32rem at -10% 30%, rgba(52, 211, 153, 0.1), transparent 60%),
+    radial-gradient(30rem 30rem at 60% 110%, rgba(251, 146, 60, 0.08), transparent 60%);
+}
+
+/* Hide scrollbars for horizontal chip rails */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ---------- components ---------- */
+@layer components {
+  /* Neumorphic raised card */
+  .neu {
+    @apply rounded-3xl bg-base shadow-neu;
+  }
+
+  /* Neumorphic pressed well (inputs, insets) */
+  .neu-inset {
+    @apply rounded-2xl bg-base shadow-neu-inset;
+  }
+
+  /* Glassmorphism panel (white milk in light, smoked glass in dark) */
+  .glass {
+    @apply rounded-3xl border border-white/60 bg-white/45 shadow-glass backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06];
+  }
+
+  /* Glass pill / chip */
+  .glass-chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/60 bg-white/50 px-3.5 py-1.5 text-xs font-medium text-muted backdrop-blur-md dark:border-white/10 dark:bg-white/[0.08];
+  }
+
+  .glass-chip-active {
+    @apply border-accent/30 bg-accent/15 text-accent shadow-glow;
+  }
+
+  /* Circular neumorphic button (icon button) */
+  .btn-circle {
+    @apply neu flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted transition active:shadow-neu-press;
+  }
+
+  /* Pill primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-accent to-accentSoft px-6 py-3 font-semibold text-white shadow-glow transition active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-white/50 px-5 py-2.5 text-sm font-medium text-muted backdrop-blur-md transition active:scale-95 dark:border dark:border-white/10 dark:bg-white/[0.08];
+  }
+
+  /* Text input with inset neumorphism */
+  .input-neu {
+    @apply neu-inset w-full px-4 py-3 text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
+
+  .label-soft {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply relative overflow-hidden rounded-2xl bg-surface;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  }
+  .dark .skeleton::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  }
+}
