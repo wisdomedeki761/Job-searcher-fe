@@ -3,7 +3,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "AJ Scraper — Job Feed",
+  title: "QX Scraper — Job Feed",
   description: "AI-assisted job scraping dashboard",
 };
 
@@ -22,7 +22,7 @@ export const viewport: Viewport = {
  * Applies the saved (or system) theme before first paint so dark mode never
  * flashes white. Runs synchronously at the top of <body>, ahead of any UI.
  */
-const themeBootstrap = `(function(){try{var s=localStorage.getItem("aj_theme");var d=s?s==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
+const themeBootstrap = `(function(){try{var s=localStorage.getItem("qx_theme");var d=s?s==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
 
 export default function RootLayout({
   children,

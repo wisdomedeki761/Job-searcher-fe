@@ -13,7 +13,7 @@ export default function ThemeToggle({ className = "btn-circle" }: { className?: 
     const next = !el.classList.contains("dark");
     el.classList.toggle("dark", next);
     try {
-      localStorage.setItem("aj_theme", next ? "dark" : "light");
+      localStorage.setItem("qx_theme", next ? "dark" : "light");
     } catch {
       /* private mode — theme just won't persist */
     }

@@ -151,18 +151,18 @@ export async function login(email: string, password: string) {
   });
   const data = await handle<{ token: string; expires_at: string; admin: Admin }>(res);
   if (typeof window !== "undefined") {
-    localStorage.setItem("aj_token", data.token);
+    localStorage.setItem("qx_token", data.token);
   }
   return data;
 }
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("aj_token");
+  return localStorage.getItem("qx_token");
 }
 
 export function logout() {
-  if (typeof window !== "undefined") localStorage.removeItem("aj_token");
+  if (typeof window !== "undefined") localStorage.removeItem("qx_token");
 }
 
 export async function fetchMe(): Promise<Admin> {

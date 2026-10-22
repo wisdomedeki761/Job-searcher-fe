@@ -1,6 +1,6 @@
-# AJ-Scraper — Frontend
+# QX-Scraper — Frontend
 
-Next.js 14 (App Router) web UI for the AJ-Scraper platform. It has two
+Next.js 14 (App Router) web UI for the QX-Scraper platform. It has two
 halves:
 
 - **Public job feed** — searchable, filterable list of scraped jobs and a
@@ -141,7 +141,7 @@ Implementation is class-based with zero flash:
   variables too, so raised/inset cards re-tint on dark surfaces.
 - **Switching:** `.dark` on `<html>`. An inline bootstrap script in
   `app/layout.tsx` applies it **before first paint** from
-  `localStorage("aj_theme")`, falling back to `prefers-color-scheme` — no
+  `localStorage("qx_theme")`, falling back to `prefers-color-scheme` — no
   white flash, no layout shift.
 - **Toggle:** `ThemeToggle` (moon ⇄ sun) sits in the feed header, job detail,
   admin header, and the desktop sidebar. The visible icon is pure CSS
@@ -173,7 +173,7 @@ of overflowing.
 All requests go through `lib/api.ts` (`API_BASE` from `NEXT_PUBLIC_API_URL`):
 
 - **Public:** `GET /api/jobs`, `GET /api/jobs/{id}`, `GET /api/sources`
-- **Auth:** `POST /api/auth/login` → JWT stored in `localStorage("aj_token")`
+- **Auth:** `POST /api/auth/login` → JWT stored in `localStorage("qx_token")`
   (24 h expiry); `GET /api/auth/me` for the current admin
 - **Admin:** Bearer-authenticated CRUD on `/api/admin/search-configs…`,
   `…/run`, `…/enable`, `…/disable`, run history, and `…/enrich` (AI profile)

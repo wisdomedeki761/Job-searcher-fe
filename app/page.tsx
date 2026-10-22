@@ -109,7 +109,7 @@ export default function HomePage() {
           <p className="text-xs font-medium uppercase tracking-widest text-muted">
             Job Feed
           </p>
-          <h1 className="text-2xl font-bold">AJ Scraper</h1>
+          <h1 className="text-2xl font-bold">QX Scraper</h1>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle className="btn-circle" />

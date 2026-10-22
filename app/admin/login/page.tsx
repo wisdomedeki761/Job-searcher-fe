@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
 
   // If already logged in, bounce to the dashboard.
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("aj_token")) {
+    if (typeof window !== "undefined" && localStorage.getItem("qx_token")) {
       router.replace("/admin");
     }
   }, [router]);

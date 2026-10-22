@@ -24,7 +24,7 @@ export default function Sidebar() {
           <p className="text-[11px] font-medium uppercase tracking-widest text-muted">
             Job Feed
           </p>
-          <p className="text-lg font-bold">AJ Scraper</p>
+          <p className="text-lg font-bold">QX Scraper</p>
         </div>
 
         <nav className="flex flex-col gap-1">
