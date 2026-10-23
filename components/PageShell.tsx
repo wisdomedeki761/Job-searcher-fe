@@ -10,7 +10,7 @@ export default function PageShell({
   footer = true,
 }: {
   children: React.ReactNode;
-  /** "Made with love in by Qx dev" strip (hidden on the login screen). */
+  /** "Made with love by Qx dev" strip (hidden on the login screen). */
   footer?: boolean;
 }) {
   return (
@@ -35,7 +35,7 @@ export default function PageShell({
       {footer && (
         <div className="relative z-10 flex items-center justify-center gap-1.5 pb-6 pt-2 text-[11px] text-muted lg:pb-8">
           <IconHeart className="h-3.5 w-3.5 text-danger" />
-          Made with love in by Qx dev
+          Made with love by Qx dev
         </div>
       )}
     </div>
