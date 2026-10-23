@@ -97,38 +97,53 @@ frontend/
 ├── app/
 │   ├── layout.tsx               # root layout: sidebar shell + dark-mode bootstrap script
 │   ├── globals.css              # theme tokens (light/dark) + glass/neumorphic components
-│   ├── page.tsx                 # public job feed (search, filters, grid)
+│   ├── login/page.tsx           # unified sign-in (whole app is private)
+│   ├── page.tsx                 # job feed (search, filters, grid) — requires login
 │   ├── jobs/[id]/page.tsx       # job detail (sticky summary + description)
 │   └── admin/
-│       ├── login/page.tsx       # super-admin login
-│       ├── page.tsx             # dashboard: configs grid + recent runs
+│       ├── login/page.tsx       # legacy redirect → /login
+│       ├── page.tsx             # dashboard: configs grid + recent runs (managers)
+│       ├── users/page.tsx       # user management (super admin only)
+│       ├── profile/page.tsx     # own account: email/name + password change
 │       └── configs/
 │           ├── new/page.tsx     # create a search config
 │           └── [id]/edit/page.tsx
 ├── components/
 │   ├── BottomNav.tsx            # floating mobile nav pill (hidden on desktop)
-│   ├── Sidebar.tsx              # fixed desktop sidebar (lg+)
+│   ├── Sidebar.tsx              # fixed desktop sidebar (lg+), permission-aware items
 │   ├── ThemeToggle.tsx          # light/dark switch
 │   ├── ConfigForm.tsx           # shared create/edit form (+ AI auto-fill, country picker)
 │   ├── JobCard.tsx              # feed card
 │   ├── JobSkeleton.tsx          # loading shimmer
 │   └── icons.tsx                # inline SVG icon set
 ├── lib/
-│   ├── api.ts                   # typed fetch client for every backend endpoint
+│   ├── api.ts                   # typed fetch client (adds Bearer token to all calls)
 │   └── format.ts                # timeAgo / labelize / work-mode tint helpers
 └── tailwind.config.ts           # CSS-variable palette, neumorphic shadows, animations
 ```
 
 ## Pages & routing
 
+Everything sits behind the login — visiting any route without a token
+redirects to `/login` (and expired tokens are kicked back there too).
+
 | Route | Access | Description |
 |---|---|---|
-| `/` | public | Job feed — debounced search, work-mode/employment filter chips, paginated "Load more" |
-| `/jobs/[id]` | public | Full job: meta card + description; Apply link opens `application_url` (or `source_url`) |
-| `/admin/login` | public | Email/password login → JWT in `localStorage` |
-| `/admin` | admin | Dashboard: search-config cards (status dot, keywords, Run now / Enable / Delete) + recent runs |
-| `/admin/configs/new` | admin | Create a config — "Auto-fill with AI" fills keywords, excludes, locations, lookback, cron from a job type |
-| `/admin/configs/[id]/edit` | admin | Edit an existing config (same form) |
+| `/login` | — | Email/password sign-in; stores JWT (`qx_token`) + account (`qx_admin`) in `localStorage` |
+| `/` | any user | Job feed — debounced search, work-mode/employment filter chips, paginated "Load more" |
+| `/jobs/[id]` | any user | Full job: meta card + description; Apply link opens `application_url` (or `source_url`) |
+| `/admin` | `can_manage_configs` | Dashboard: search-config cards (status dot, keywords, Run now / Enable / Delete) + recent runs |
+| `/admin/configs/new` | `can_manage_configs` | Create a config — "Auto-fill with AI" fills keywords, excludes, locations, lookback, cron from a job type |
+| `/admin/configs/[id]/edit` | `can_manage_configs` | Edit an existing config (same form) |
+| `/admin/users` | super admin | Create users by email (backend generates + emails the password), toggle config access, reset passwords, delete |
+| `/admin/profile` | any user | Change own name/email and password (use after logging in with a generated password) |
+
+**Permission gating:** the cached account (`getStoredAdmin()`) drives UI
+visibility — the Admin gauge/nav item and config controls only render for
+`can_manage_configs` users; the Users page/entry only for `super_admin`.
+View-only users see just the feed and their account page. Server-side the
+same rules are enforced per request (fresh DB check), so a revoked user is
+blocked on their next API call regardless of the UI.
 
 ## UI: dark mode
 
@@ -172,15 +187,22 @@ of overflowing.
 
 All requests go through `lib/api.ts` (`API_BASE` from `NEXT_PUBLIC_API_URL`):
 
-- **Public:** `GET /api/jobs`, `GET /api/jobs/{id}`, `GET /api/sources`
+- **Public:** only `POST /api/auth/login` and `GET /health` — the job feed,
+  sources and every admin endpoint require a Bearer token
 - **Auth:** `POST /api/auth/login` → JWT stored in `localStorage("qx_token")`
-  (24 h expiry); `GET /api/auth/me` for the current admin
-- **Admin:** Bearer-authenticated CRUD on `/api/admin/search-configs…`,
+  plus the account JSON in `localStorage("qx_admin")` (drives permission
+  gating); `GET /api/auth/me` refreshes both
+- **Any user:** `GET /api/jobs`, `GET /api/jobs/{id}`, `GET /api/sources`,
+  `PUT /api/admin/profile` (own email/name), `PUT /api/admin/profile/password`
+- **Managers** (`can_manage_configs`): CRUD on `/api/admin/search-configs…`,
   `…/run`, `…/enable`, `…/disable`, run history, and `…/enrich` (AI profile)
+- **Super admin:** `…/api/admin/users` — create (backend generates + emails
+  the password), edit, permission toggle, reset password, delete
 
-Behavior: any admin response with `401 / unauthorized` clears the token and
-redirects to `/admin/login`. Fetches use `cache: "no-store"`; the feed
-aborts superseded requests when filters change quickly.
+Behavior: any `401 / unauthorized` response clears the session and redirects
+to `/login`; every page also checks for a token on mount. Fetches use
+`cache: "no-store"`; the feed aborts superseded requests when filters change
+quickly.
 
 Backend CORS is open, so no proxying is needed — the browser calls `:8080`
 directly.

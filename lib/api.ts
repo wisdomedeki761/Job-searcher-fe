@@ -114,23 +114,27 @@ function qs(params: object): string {
   return s ? `?${s}` : "";
 }
 
-/* ---------------- public API ---------------- */
+/* ---------------- authenticated API (login required) ---------------- */
 
-export async function fetchJobs(filter: JobFilter): Promise<Job[]> {
-  const res = await fetch(`${API_BASE}/api/jobs${qs(filter)}`, {
+async function authedFetch<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
     cache: "no-store",
   });
-  return handleList<Job>(res);
+  return handle<T>(res);
+}
+
+export async function fetchJobs(filter: JobFilter): Promise<Job[]> {
+  const data = await authedFetch<Job[] | null>(`/api/jobs${qs(filter)}`);
+  return data ?? [];
 }
 
 export async function fetchJob(id: string): Promise<Job> {
-  const res = await fetch(`${API_BASE}/api/jobs/${id}`, { cache: "no-store" });
-  return handle<Job>(res);
+  return authedFetch<Job>(`/api/jobs/${id}`);
 }
 
 export async function fetchSources(): Promise<{ sources: string[]; ai: boolean }> {
-  const res = await fetch(`${API_BASE}/api/sources`, { cache: "no-store" });
-  return handle(res);
+  return authedFetch<{ sources: string[]; ai: boolean }>("/api/sources");
 }
 
 /* ---------------- auth ---------------- */
@@ -139,8 +143,17 @@ export interface Admin {
   id: string;
   email: string;
   name: string;
-  role: string;
+  role: string; // "super_admin" | "user"
+  can_manage_configs: boolean;
   last_login_at?: string;
+}
+
+/** Result of create-user / reset-password (super admin only). */
+export interface CredentialsResult {
+  admin: Admin;
+  emailed: boolean;
+  password?: string; // present only when the email could not be sent
+  message: string;
 }
 
 export async function login(email: string, password: string) {
@@ -152,6 +165,7 @@ export async function login(email: string, password: string) {
   const data = await handle<{ token: string; expires_at: string; admin: Admin }>(res);
   if (typeof window !== "undefined") {
     localStorage.setItem("qx_token", data.token);
+    localStorage.setItem("qx_admin", JSON.stringify(data.admin));
   }
   return data;
 }
@@ -161,15 +175,37 @@ export function getToken(): string | null {
   return localStorage.getItem("qx_token");
 }
 
+/** Cached account from login / last /me refresh — drives UI permission gating. */
+export function getStoredAdmin(): Admin | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("qx_admin");
+    return raw ? (JSON.parse(raw) as Admin) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeAdmin(a: Admin) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("qx_admin", JSON.stringify(a));
+  }
+}
+
 export function logout() {
-  if (typeof window !== "undefined") localStorage.removeItem("qx_token");
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("qx_token");
+    localStorage.removeItem("qx_admin");
+  }
 }
 
 export async function fetchMe(): Promise<Admin> {
   const res = await fetch(`${API_BASE}/api/auth/me`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
-  return handle<Admin>(res);
+  const me = await handle<Admin>(res);
+  storeAdmin(me); // refresh cached permissions
+  return me;
 }
 
 /* ---------------- admin API ---------------- */
@@ -231,4 +267,26 @@ export const admin = {
       method: "POST",
       body: JSON.stringify({ job_type }),
     }),
+
+  /* account self-service (any logged-in user) */
+  updateProfile: (body: { email?: string; name?: string }) =>
+    adminFetch<Admin>("/profile", { method: "PUT", body: JSON.stringify(body) }),
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    adminFetch<{ status: string }>("/profile/password", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  /* user management (super admin only) */
+  listUsers: () => adminFetchList<Admin>("/users"),
+  createUser: (body: { email: string; name?: string; can_manage_configs: boolean }) =>
+    adminFetch<CredentialsResult>("/users", { method: "POST", body: JSON.stringify(body) }),
+  updateUser: (
+    id: string,
+    body: { email?: string; name?: string; can_manage_configs?: boolean },
+  ) => adminFetch<Admin>(`/users/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteUser: (id: string) =>
+    adminFetch<{ status: string }>(`/users/${id}`, { method: "DELETE" }),
+  resetUserPassword: (id: string) =>
+    adminFetch<CredentialsResult>(`/users/${id}/reset-password`, { method: "POST" }),
 };

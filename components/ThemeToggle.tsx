@@ -7,7 +7,7 @@ import { IconMoon, IconSun } from "./icons";
  * before paint by the inline script in app/layout.tsx), so the visible icon
  * is driven by the class too — no hydration mismatch, no flash.
  */
-export default function ThemeToggle({ className = "btn-circle" }: { className?: string }) {
+export default function ThemeToggle({ className = "icon-btn" }: { className?: string }) {
   function toggle() {
     const el = document.documentElement;
     const next = !el.classList.contains("dark");

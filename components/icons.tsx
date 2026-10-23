@@ -104,3 +104,91 @@ export const IconMoon = ({ className = "h-5 w-5" }: P) => (
     <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" />
   </svg>
 );
+
+export const IconUser = ({ className = "h-5 w-5" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+  </svg>
+);
+
+export const IconUsers = ({ className = "h-5 w-5" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+    <path d="M16 5.2a3.5 3.5 0 0 1 0 5.6M18 14.2a6.5 6.5 0 0 1 3.5 5.8" />
+  </svg>
+);
+
+export const IconX = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+export const IconCheck = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+export const IconGlobe = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18Z" />
+  </svg>
+);
+
+export const IconChevronDown = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+export const IconPencil = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+);
+
+export const IconPause = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className={className}>
+    <path d="M9 5v14M15 5v14" />
+  </svg>
+);
+
+export const IconHeart = ({ className = "h-3.5 w-3.5" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M19 14c1.5-1.5 3-3.4 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.1 1.5 4 3 5.5l7 7Z" />
+  </svg>
+);
+
+export const IconInfo = ({ className = "h-3.5 w-3.5" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </svg>
+);
+
+export const IconRefresh = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+    <path d="M21 3v6h-6" />
+  </svg>
+);
+
+export const IconAlertCircle = ({ className = "h-4 w-4" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v4.5M12 16h.01" />
+  </svg>
+);
+
+export const IconKey = ({ className = "h-5 w-5" }: P) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="8" cy="15" r="4.5" />
+    <path d="m11.5 11.5 8-8M17 6l2 2M14.5 8.5l2 2" />
+  </svg>
+);

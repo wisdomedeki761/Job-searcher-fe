@@ -24,16 +24,20 @@ export function labelize(v: string): string {
     .join(" ");
 }
 
-/** Color hint for work mode chips. */
+/**
+ * Chip variant class for a work mode, matching the export's status tints:
+ * remote → success green, hybrid → warning amber, onsite → danger rose.
+ * Returns extra classes to layer on top of the base `chip` class.
+ */
 export function workModeTint(mode: string): string {
   switch (mode) {
     case "remote":
-      return "text-mint border-mint/30 bg-mint/10";
+      return "chip-success";
     case "hybrid":
-      return "text-peach border-peach/30 bg-peach/10";
+      return "chip-warning";
     case "onsite":
-      return "text-rose border-rose/30 bg-rose/10";
+      return "chip-danger";
     default:
-      return "text-muted border-white/60 bg-white/40 dark:border-white/10 dark:bg-white/[0.06]";
+      return "";
   }
 }

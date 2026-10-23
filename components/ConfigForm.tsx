@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import i18nCountries from "i18n-iso-countries";
-import { IconArrowLeft, IconSparkles } from "@/components/icons";
+import Alert from "@/components/Alert";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconGlobe,
+  IconRefresh,
+  IconSearch,
+  IconSparkles,
+} from "@/components/icons";
 import {
   admin,
   fetchSources,
+  getStoredAdmin,
   getToken,
   type AIProfile,
   type SearchConfig,
@@ -21,7 +29,7 @@ const COUNTRIES = Object.values(i18nCountries.getNames("en")).sort((a, b) =>
   a.localeCompare(b),
 );
 
-/** Editable chip-list input: type then Enter/comma to add. */
+/** Editable chip-list input: chips live inside the well, type + Enter/comma. */
 function TagsInput({
   label,
   value,
@@ -47,40 +55,40 @@ function TagsInput({
 
   return (
     <div>
-      <label className="label-soft">{label}</label>
-      <div className="mb-2 flex flex-wrap gap-2">
+      <label className="label">{label}</label>
+      <div className="field mt-2 flex min-h-[52px] flex-wrap items-center gap-2 p-2.5">
         {value.map((v) => (
-          <span key={v} className="glass-chip capitalize">
+          <span key={v} className="chip chip-accent capitalize">
             {v}
             <button
               type="button"
               onClick={() => onChange(value.filter((x) => x !== v))}
-              className="ml-1 text-muted hover:text-rose"
+              className="ml-0.5 hover:opacity-70"
               aria-label={`Remove ${v}`}
             >
-              ✕
+              ×
             </button>
           </span>
         ))}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              add(draft);
+            }
+          }}
+          onBlur={() => add(draft)}
+          placeholder={placeholder}
+          className="min-w-[160px] flex-1 border-0 bg-transparent p-0 text-xs text-ink outline-none placeholder:text-placeholder"
+        />
       </div>
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === ",") {
-            e.preventDefault();
-            add(draft);
-          }
-        }}
-        onBlur={() => add(draft)}
-        placeholder={placeholder}
-        className="input-neu"
-      />
     </div>
   );
 }
 
-/** Button that opens a searchable list of every country in the world. */
+/** Scrollable list of every country in the world (LOCATIONS · BROWSE ALL). */
 function CountryPicker({
   selected,
   onToggle,
@@ -99,30 +107,36 @@ function CountryPicker({
   }, [q]);
 
   return (
-    <div className="mt-2">
+    <div className="mt-3 flex flex-col gap-3">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="btn-ghost w-full"
+        className="flex w-full items-center gap-2.5"
       >
-        🌍 {open ? "Hide country list" : "Browse all countries"}
-        {selected.length > 0 && (
-          <span className="glass-chip ml-2 px-2">{selected.length} selected</span>
-        )}
+        <IconGlobe className="h-[18px] w-[18px] text-accent" />
+        <span className="flex-1 text-left text-xs font-semibold text-accent">
+          Browse all countries
+        </span>
+        <IconChevronDown
+          className={`h-4 w-4 text-muted transition ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
-        <div className="glass mt-2 p-3">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${COUNTRIES.length} countries…`}
-            className="input-neu mb-2"
-            autoFocus
-          />
-          <div className="max-h-64 overflow-y-auto pr-1">
+        <>
+          <div className="field flex h-11 items-center gap-2.5 p-3">
+            <IconSearch className="h-4 w-4 shrink-0 text-muted" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search countries…"
+              className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-ink outline-none placeholder:text-placeholder"
+              autoFocus
+            />
+          </div>
+          <div className="field h-64 overflow-y-auto p-0 px-3">
             {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted">
+              <p className="px-2 py-2 text-sm text-muted">
                 No countries match &ldquo;{q}&rdquo;.
               </p>
             ) : (
@@ -133,19 +147,55 @@ function CountryPicker({
                     key={c}
                     type="button"
                     onClick={() => onToggle(c)}
-                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition hover:bg-surface ${
-                      active ? "text-accent" : ""
+                    className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-left text-[13px] transition ${
+                      active
+                        ? "bg-accent-soft font-medium text-accent"
+                        : "text-ink hover:bg-field"
                     }`}
                   >
-                    <span>{c}</span>
-                    {active && <span aria-hidden>✓</span>}
+                    <span className="flex-1">{c}</span>
+                    {active && <IconCheck className="h-4 w-4 shrink-0" />}
                   </button>
                 );
               })
             )}
           </div>
-        </div>
+          <p className="text-[11px] text-muted">
+            {COUNTRIES.length} countries · {selected.length} selected
+          </p>
+        </>
       )}
+    </div>
+  );
+}
+
+/** Selects rendered as chip rows (SELECTS · AVAILABLE OPTIONS). */
+function ChipSelect({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {options.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            className={`chip capitalize transition ${value === v ? "chip-accent" : "hover:text-ink"}`}
+          >
+            {v.replace("_", " ")}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -178,7 +228,13 @@ export default function ConfigForm({ configId }: { configId?: string }) {
   // Auth guard + load existing config + available sources.
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/admin/login");
+      router.replace("/login");
+      return;
+    }
+    // View-only accounts can't edit configs — back to the feed.
+    const cached = getStoredAdmin();
+    if (cached && !cached.can_manage_configs) {
+      router.replace("/");
       return;
     }
     fetchSources()
@@ -233,6 +289,14 @@ export default function ConfigForm({ configId }: { configId?: string }) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (!jobType.trim()) {
+      setError("Job type is required.");
+      return;
+    }
+    if (!Number.isFinite(lookback) || lookback < 1 || lookback > 720) {
+      setError("Lookback hours must be between 1 and 720.");
+      return;
+    }
     setBusy(true);
     setError(null);
     const body = {
@@ -256,16 +320,22 @@ export default function ConfigForm({ configId }: { configId?: string }) {
       }
       router.push("/admin");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Couldn't save this search. Please try again.",
+      );
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={save} className="glass space-y-4 p-5">
+    <form onSubmit={save} className="card flex flex-col gap-6 p-7">
+      {/* FORM · SAVING — the whole field stack dims while the request runs */}
+      <div className={busy ? "flex flex-col gap-6 opacity-50" : "contents"}>
       <div>
-        <label htmlFor="jobType" className="label-soft">
-          Job type
+        <label htmlFor="jobType" className="label">
+          Job type *
         </label>
         <input
           id="jobType"
@@ -273,163 +343,174 @@ export default function ConfigForm({ configId }: { configId?: string }) {
           onChange={(e) => setJobType(e.target.value)}
           placeholder="e.g. Frontend React Developer"
           required
-          className="input-neu"
+          disabled={busy || enriching}
+          className="field mt-2"
         />
       </div>
 
       <button
         type="button"
         onClick={enrich}
-        disabled={enriching}
-        className="btn-ghost w-full text-accent disabled:opacity-60"
+        disabled={enriching || busy}
+        className="btn-ghost w-full"
       >
-        <IconSparkles className="h-4 w-4" />
+        <IconSparkles className="h-4 w-4 text-accent" />
         {enriching ? "AI is filling the profile…" : "Auto-fill with AI"}
       </button>
 
-      <TagsInput
-        label="Keywords"
-        value={keywords}
-        onChange={setKeywords}
-        placeholder="react, typescript…"
-      />
-      <TagsInput
-        label="Exclude keywords"
-        value={exclude}
-        onChange={setExclude}
-        placeholder="junior, unpaid…"
-      />
-      <div>
-        <TagsInput
-          label="Locations"
-          value={locations}
-          onChange={setLocations}
-          placeholder="Remote, Berlin…"
-        />
-        <CountryPicker
-          selected={locations}
-          onToggle={(name) =>
-            setLocations((prev) =>
-              prev.includes(name)
-                ? prev.filter((x) => x !== name)
-                : [...prev, name],
-            )
-          }
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="employment" className="label-soft">
-            Employment
-          </label>
-          <select
-            id="employment"
-            value={employment}
-            onChange={(e) => setEmployment(e.target.value)}
-            className="input-neu capitalize"
-          >
-            {EMPLOYMENT.map((v) => (
-              <option key={v} value={v} className="capitalize">
-                {v.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="workMode" className="label-soft">
-            Work mode
-          </label>
-          <select
-            id="workMode"
-            value={workMode}
-            onChange={(e) => setWorkMode(e.target.value)}
-            className="input-neu capitalize"
-          >
-            {WORK_MODE.map((v) => (
-              <option key={v} value={v} className="capitalize">
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="cron" className="label-soft">
-            Cron schedule
-          </label>
-          <input
-            id="cron"
-            value={cron}
-            onChange={(e) => setCron(e.target.value)}
-            placeholder="0 */6 * * *"
-            required
-            className="input-neu"
-          />
-          <p className="mt-1 text-[11px] text-muted">e.g. every 6 hours</p>
-        </div>
-        <div>
-          <label htmlFor="lookback" className="label-soft">
-            Lookback (hours)
-          </label>
-          <input
-            id="lookback"
-            type="number"
-            min={1}
-            max={720}
-            value={lookback}
-            onChange={(e) => setLookback(Number(e.target.value))}
-            className="input-neu"
-          />
-        </div>
-      </div>
-
-      {availableSources.length > 0 && (
-        <div>
-          <label className="label-soft">Sources</label>
-          <div className="flex flex-wrap gap-2">
-            {availableSources.map((s) => {
-              const active = sources.includes(s);
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() =>
-                    setSources(
-                      active ? sources.filter((x) => x !== s) : [...sources, s],
-                    )
-                  }
-                  className={`glass-chip capitalize transition ${active ? "glass-chip-active" : ""}`}
-                >
-                  {s}
-                </button>
-              );
-            })}
+      {/* AI · FILLING THE PROFILE — fields below keep their shape as skeletons */}
+      {enriching ? (
+        <>
+          <div className="card flex h-[100px] flex-col items-start gap-3.5 p-5">
+            <div className="skeleton h-4 w-full shrink-0 rounded-[5px]" />
+            <div className="skeleton h-3 w-[140px] shrink-0 rounded-[5px]" />
+            <div className="skeleton h-3 w-[100px] shrink-0 rounded-[5px]" />
           </div>
-        </div>
+          <div className="card flex h-[100px] flex-col items-start gap-3.5 p-5">
+            <div className="skeleton h-4 w-full shrink-0 rounded-[5px]" />
+            <div className="skeleton h-3 w-[140px] shrink-0 rounded-[5px]" />
+            <div className="skeleton h-3 w-[100px] shrink-0 rounded-[5px]" />
+          </div>
+          <p className="text-xs text-muted">
+            Finding relevant keywords, exclusions, locations, employment, work
+            mode, schedule, lookback, sources, and enabled status…
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="divider" />
+
+          <TagsInput
+            label="Keywords"
+            value={keywords}
+            onChange={setKeywords}
+            placeholder="Type and press Enter or comma"
+          />
+          <TagsInput
+            label="Exclude keywords"
+            value={exclude}
+            onChange={setExclude}
+            placeholder="Type and press Enter or comma"
+          />
+          <div>
+            <TagsInput
+              label="Locations"
+              value={locations}
+              onChange={setLocations}
+              placeholder="Type and press Enter or comma"
+            />
+            <CountryPicker
+              selected={locations}
+              onToggle={(name) =>
+                setLocations((prev) =>
+                  prev.includes(name)
+                    ? prev.filter((x) => x !== name)
+                    : [...prev, name],
+                )
+              }
+            />
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <ChipSelect
+              label="Employment"
+              options={EMPLOYMENT}
+              value={employment}
+              onChange={setEmployment}
+            />
+            <ChipSelect
+              label="Work mode"
+              options={WORK_MODE}
+              value={workMode}
+              onChange={setWorkMode}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="cron" className="label">
+                Cron schedule
+              </label>
+              <input
+                id="cron"
+                value={cron}
+                onChange={(e) => setCron(e.target.value)}
+                placeholder="0 */6 * * *"
+                required
+                className="field mt-2 font-mono"
+              />
+              <p className="hint mt-1.5">e.g. every 6 hours</p>
+            </div>
+            <div>
+              <label htmlFor="lookback" className="label">
+                Lookback hours
+              </label>
+              <input
+                id="lookback"
+                type="number"
+                min={1}
+                max={720}
+                value={lookback}
+                onChange={(e) => setLookback(Number(e.target.value))}
+                className="field mt-2"
+              />
+              <p className="hint mt-1.5">From 1 to 720 hours</p>
+            </div>
+          </div>
+
+          {availableSources.length > 0 && (
+            <div>
+              <label className="label">Sources</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {availableSources.map((s) => {
+                  const active = sources.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() =>
+                        setSources(
+                          active ? sources.filter((x) => x !== s) : [...sources, s],
+                        )
+                      }
+                      className={`chip capitalize transition ${
+                        active ? "chip-accent" : "hover:text-ink"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="hint mt-2">Choose one or more registered sources.</p>
+            </div>
+          )}
+
+          <div className="divider" />
+
+          <label className="flex cursor-pointer items-center justify-between gap-4">
+            <span className="text-sm font-medium text-ink">
+              Enabled
+              <span className="mt-0.5 block text-[11px] font-normal text-muted">
+                Run this search automatically on its schedule.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="switch"
+            />
+          </label>
+        </>
       )}
+      </div>
 
-      <label className="flex items-center justify-between rounded-2xl px-1 py-1">
-        <span className="text-sm font-medium">Enabled</span>
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(e) => setEnabled(e.target.checked)}
-          className="h-6 w-11 cursor-pointer appearance-none rounded-full bg-surface shadow-neu-inset transition checked:bg-accent"
-        />
-      </label>
+      {/* FORM · VALIDATION & SERVER ERROR */}
+      {error && <Alert>{error}</Alert>}
 
-      {error && (
-        <p className="rounded-2xl bg-rose/10 px-4 py-3 text-sm text-rose">{error}</p>
-      )}
-
-      <button
-        type="submit"
-        disabled={busy}
-        className="btn-primary w-full disabled:opacity-60"
-      >
+      <button type="submit" disabled={busy || enriching} className="btn-primary w-full">
+        {busy && <IconRefresh className="h-4 w-4 animate-spin" />}
         {busy ? "Saving…" : isEdit ? "Save changes" : "Create search"}
       </button>
     </form>

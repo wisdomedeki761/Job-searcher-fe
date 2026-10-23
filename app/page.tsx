@@ -1,13 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import JobCard from "@/components/JobCard";
 import JobSkeleton from "@/components/JobSkeleton";
-import ThemeToggle from "@/components/ThemeToggle";
-import { IconBriefcase, IconGauge, IconSearch, IconSliders } from "@/components/icons";
-import { fetchJobs, type Job } from "@/lib/api";
+import PageShell from "@/components/PageShell";
+import TopBar from "@/components/TopBar";
+import {
+  IconBriefcase,
+  IconGauge,
+  IconSearch,
+  IconRefresh,
+  IconSliders,
+  IconSparkles,
+  IconUser,
+  IconX,
+} from "@/components/icons";
+import {
+  fetchJobs,
+  fetchMe,
+  getStoredAdmin,
+  getToken,
+  logout,
+  type Admin,
+  type Job,
+} from "@/lib/api";
 
 const WORK_MODES = ["", "remote", "hybrid", "onsite"] as const;
 const EMPLOYMENT = ["", "full_time", "part_time", "contract", "internship"] as const;
@@ -26,7 +44,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`glass-chip capitalize transition ${active ? "glass-chip-active" : ""}`}
+      className={`chip capitalize transition ${active ? "chip-accent" : "hover:text-ink"}`}
     >
       {children}
     </button>
@@ -34,6 +52,8 @@ function Chip({
 }
 
 export default function HomePage() {
+  const router = useRouter();
+  const [me, setMe] = useState<Admin | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -45,10 +65,24 @@ export default function HomePage() {
   const [showFilters, setShowFilters] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [total, setTotal] = useState<number | null>(null);
 
   // Abort in-flight requests when filters change rapidly.
   const abortRef = useRef<AbortController | null>(null);
+
+  // The feed is private: no token → straight to login. Refresh cached
+  // permissions so the Admin button only shows for allowed accounts.
+  useEffect(() => {
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+    setMe(getStoredAdmin());
+    fetchMe()
+      .then(setMe)
+      .catch(() => {
+        /* keep cached copy; 401 is handled by load() */
+      });
+  }, [router]);
 
   const load = useCallback(
     async (reset: boolean) => {
@@ -75,13 +109,19 @@ export default function HomePage() {
         });
         if (controller.signal.aborted) return;
 
-        setTotal(null);
         setJobs((prev) => (reset ? data : [...prev, ...data]));
         setHasMore(data.length === LIMIT);
         setOffset(start + data.length);
       } catch (e) {
         if (controller.signal.aborted) return;
-        setError(e instanceof Error ? e.message : "Failed to load jobs");
+        const msg = e instanceof Error ? e.message : "Failed to load jobs";
+        // Expired/invalid session → back to login.
+        if (/401|expired token|unauthor/i.test(msg)) {
+          logout();
+          router.replace("/login");
+          return;
+        }
+        setError(msg);
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -89,7 +129,7 @@ export default function HomePage() {
         }
       }
     },
-    [q, workMode, employment, offset],
+    [q, workMode, employment, offset, router],
   );
 
   // Debounced reload on filter changes.
@@ -102,67 +142,71 @@ export default function HomePage() {
   const activeFilters = (workMode ? 1 : 0) + (employment ? 1 : 0);
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg px-4 pb-32 pt-6 md:max-w-4xl md:px-6 lg:max-w-none lg:px-8 lg:pb-14 xl:max-w-6xl">
-      {/* Header */}
-      <header className="mb-5 flex items-center justify-between">
+    <PageShell>
+      <TopBar />
+
+      {/* Hero */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-muted">
-            Job Feed
+          <h1 className="text-[32px] font-semibold leading-tight text-ink">
+            Fresh roles, without the noise.
+          </h1>
+          <p className="mt-1.5 text-sm text-muted">
+            Your next move starts with a better signal.
           </p>
-          <h1 className="text-2xl font-bold">QX Scraper</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle className="btn-circle" />
-          <Link href="/admin" className="btn-circle" aria-label="Dashboard">
-            <IconGauge />
-          </Link>
-        </div>
-      </header>
+        <span className="chip chip-accent">
+          <IconSparkles className="h-3 w-3" />
+          AI-curated opportunities
+        </span>
+      </div>
 
       {/* Search + filter toggle */}
-      <div className="mb-4 flex items-center gap-3">
-        <div className="neu-inset flex flex-1 items-center gap-2 px-4 py-3">
-          <IconSearch className="h-4 w-4 text-muted" />
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <IconSearch className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search title, company, keyword…"
-            className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70 focus:outline-none"
+            className="search-field pl-11 pr-10"
             aria-label="Search jobs"
           />
           {q && (
             <button
               type="button"
               onClick={() => setQ("")}
-              className="text-muted hover:text-ink"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
               aria-label="Clear search"
             >
-              ✕
+              <IconX className="h-4 w-4" />
             </button>
           )}
         </div>
         <button
           type="button"
           onClick={() => setShowFilters((v) => !v)}
-          className="btn-circle relative"
+          className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent transition active:scale-[0.98]"
           aria-label="Toggle filters"
           aria-expanded={showFilters}
         >
-          <IconSliders />
+          <IconSliders className="h-5 w-5" />
           {activeFilters > 0 && (
-            <span className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-glow">
+            <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-accent">
               {activeFilters}
             </span>
           )}
         </button>
       </div>
 
-      {/* Filter rails */}
+      {/* Filter panel */}
       {showFilters && (
-        <div className="glass mb-4 space-y-3 p-4">
-          <div>
-            <p className="label-soft">Work mode</p>
-            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        <div className="card flex flex-col gap-3.5 p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="w-24 shrink-0 text-xs font-semibold text-ink">
+              Work mode
+            </span>
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
               {WORK_MODES.map((m) => (
                 <Chip key={m || "any"} active={workMode === m} onClick={() => setWorkMode(m)}>
                   {m || "Any"}
@@ -170,9 +214,11 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-          <div>
-            <p className="label-soft">Employment</p>
-            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="w-24 shrink-0 text-xs font-semibold text-ink">
+              Employment
+            </span>
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
               {EMPLOYMENT.map((m) => (
                 <Chip key={m || "any"} active={employment === m} onClick={() => setEmployment(m)}>
                   {m ? m.replace("_", " ") : "Any"}
@@ -196,52 +242,79 @@ export default function HomePage() {
       )}
 
       {/* Results */}
-      <div className="space-y-3">
+      <div className="flex flex-1 flex-col gap-4">
         {loading ? (
-          <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <JobSkeleton />
             <JobSkeleton />
             <JobSkeleton />
-          </>
+          </div>
         ) : error ? (
-          <div className="glass p-6 text-center">
-            <p className="font-medium text-rose">Couldn’t load jobs</p>
-            <p className="mt-1 text-sm text-muted">{error}</p>
-            <button type="button" onClick={() => load(true)} className="btn-primary mt-4">
-              Retry
+          /* JOB FEED · ERROR — title, copy, ghost retry */
+          <div className="card flex flex-col items-start gap-5 p-8">
+            <p className="text-[21px] font-semibold text-danger">
+              Couldn&apos;t load jobs
+            </p>
+            <p className="text-sm text-muted">
+              We couldn&apos;t reach the job feed. Please try again in a moment.
+            </p>
+            <button type="button" onClick={() => load(true)} className="btn-ghost">
+              <IconRefresh className="h-4 w-4 text-accent" /> Retry
             </button>
           </div>
         ) : jobs.length === 0 ? (
-          <div className="glass flex flex-col items-center gap-3 p-8 text-center">
-            <span className="btn-circle animate-float h-14 w-14 text-accent">
-              <IconBriefcase className="h-6 w-6" />
+          /* JOB FEED · EMPTY — circular icon, centered copy, clear filters */
+          <div className="card flex flex-col items-center gap-4 p-8 text-center">
+            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-white/90 bg-white shadow-accent dark:border-line dark:bg-surface">
+              <IconBriefcase className="h-[30px] w-[30px] text-accent" />
             </span>
-            <p className="font-semibold">No jobs found</p>
-            <p className="text-sm text-muted">
-              Try different keywords or clear your filters. Jobs appear here once a
-              search config has run.
+            <p className="text-[23px] font-semibold text-ink">No jobs found</p>
+            <p className="max-w-sm text-sm text-muted">
+              Try a broader keyword or clear your filters to see more
+              opportunities.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                setQ("");
+                setWorkMode("");
+                setEmployment("");
+              }}
+              className="btn-ghost"
+            >
+              Clear filters
+            </button>
           </div>
         ) : (
           <>
-            {/* 1 column on mobile, 2 on tablet/desktop, 3 on wide screens */}
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-[22px] font-semibold text-ink">
+                {jobs.length} matching opportunit{jobs.length === 1 ? "y" : "ies"}
+              </h2>
+              <span className="text-xs text-muted">Newest first</span>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {jobs.map((job) => (
                 <JobCard key={job.id} job={job} />
               ))}
             </div>
+
             {hasMore ? (
+              /* PAGINATION · LOADING — disabled ghost button while fetching */
               <button
                 type="button"
                 onClick={() => load(false)}
                 disabled={loadingMore}
-                className="btn-ghost w-full disabled:opacity-60"
+                className="btn-ghost w-full"
               >
+                <IconRefresh className={`h-4 w-4 text-accent ${loadingMore ? "animate-spin" : ""}`} />
                 {loadingMore ? "Loading…" : "Load more"}
               </button>
             ) : (
-              <p className="pt-2 text-center text-xs text-muted">
-                {jobs.length} job{jobs.length === 1 ? "" : "s"} shown — end of results
+              /* PAGINATION · END OF RESULTS */
+              <p className="text-center text-xs text-muted">
+                {jobs.length} jobs shown — end of results
               </p>
             )}
           </>
@@ -251,9 +324,12 @@ export default function HomePage() {
       <BottomNav
         items={[
           { href: "/", label: "Jobs", icon: <IconBriefcase />, active: true },
-          { href: "/admin", label: "Admin", icon: <IconGauge /> },
+          ...(me?.can_manage_configs
+            ? [{ href: "/admin", label: "Admin", icon: <IconGauge /> }]
+            : []),
+          { href: "/admin/profile", label: "Account", icon: <IconUser /> },
         ]}
       />
-    </div>
+    </PageShell>
   );
 }

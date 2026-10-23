@@ -1,13 +1,13 @@
-/** Neumorphic skeleton loader card for the job feed. */
+/**
+ * Loading placeholder for the job feed (JOB FEED · LOADING): a 210px glass
+ * card holding the three reference skeleton bars.
+ */
 export default function JobSkeleton() {
   return (
-    <div className="glass space-y-3 p-4">
-      <div className="skeleton h-4 w-3/4" />
-      <div className="skeleton h-3 w-1/2" />
-      <div className="flex gap-2">
-        <div className="skeleton h-6 w-16 rounded-full" />
-        <div className="skeleton h-6 w-20 rounded-full" />
-      </div>
+    <div className="card flex h-[210px] flex-col gap-3.5 p-5">
+      <div className="skeleton h-4 w-full shrink-0 rounded-[5px]" />
+      <div className="skeleton h-3 w-[140px] shrink-0 rounded-[5px]" />
+      <div className="skeleton h-3 w-[100px] shrink-0 rounded-[5px]" />
     </div>
   );
 }

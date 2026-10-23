@@ -4,59 +4,86 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import ThemeToggle from "@/components/ThemeToggle";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import PageShell from "@/components/PageShell";
+import Toast from "@/components/Toast";
+import TopBar from "@/components/TopBar";
 import {
   IconBriefcase,
   IconGauge,
-  IconLogout,
+  IconPause,
+  IconPencil,
   IconPlay,
   IconPlus,
+  IconRefresh,
   IconSparkles,
   IconTrash,
+  IconUser,
 } from "@/components/icons";
 import {
   admin,
   fetchMe,
+  getStoredAdmin,
   getToken,
   logout,
-  type Admin,
   type SearchConfig,
   type SearchRun,
 } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 
+/** Dot colors from the export: enabled green, disabled grey, running amber. */
 function StatusDot({ cfg }: { cfg: SearchConfig }) {
   const color = cfg.running
-    ? "bg-peach animate-pulse"
+    ? "bg-warning animate-pulse"
     : cfg.enabled
-      ? "bg-mint"
-      : "bg-muted/50";
-  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${color}`} />;
+      ? "bg-success"
+      : "bg-placeholder/50";
+  return <span className={`inline-block h-[7px] w-[7px] rounded-full ${color}`} />;
+}
+
+/** Hours/minutes until an ISO timestamp, e.g. "4h" / "35m". */
+function until(iso?: string): string {
+  if (!iso) return "—";
+  const ms = new Date(iso).getTime() - Date.now();
+  if (Number.isNaN(ms)) return "—";
+  if (ms <= 0) return "now";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  return `${Math.round(mins / 60)}h`;
+}
+
+function RunStatusChip({ run }: { run: SearchRun }) {
+  if (run.status === "success") {
+    return <span className="chip chip-success shrink-0 capitalize">Completed</span>;
+  }
+  if (run.status === "failed") {
+    return <span className="chip chip-danger shrink-0 capitalize">Failed</span>;
+  }
+  return <span className="chip chip-accent shrink-0 capitalize">{run.status}</span>;
 }
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [adminUser, setAdminUser] = useState<Admin | null>(null);
   const [configs, setConfigs] = useState<SearchConfig[]>([]);
   const [runs, setRuns] = useState<SearchRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ tone: "success" | "accent" | "danger"; msg: string } | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<SearchConfig | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
+  const showToast = (msg: string, tone: "success" | "accent" | "danger" = "success") => {
+    setToast({ tone, msg });
     setTimeout(() => setToast(null), 2500);
   };
 
   const refresh = useCallback(async () => {
     try {
-      const [me, cfgs, allRuns] = await Promise.all([
+      const [, cfgs, allRuns] = await Promise.all([
         fetchMe(),
         admin.listConfigs(),
         admin.allRuns(),
       ]);
-      setAdminUser(me);
       setConfigs(cfgs);
       setRuns(allRuns);
       setError(null);
@@ -69,7 +96,13 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/admin/login");
+      router.replace("/login");
+      return;
+    }
+    // View-only accounts have no business here — send them to the feed.
+    const cached = getStoredAdmin();
+    if (cached && !cached.can_manage_configs) {
+      router.replace("/");
       return;
     }
     refresh();
@@ -83,10 +116,10 @@ export default function AdminDashboardPage() {
       const msg = e instanceof Error ? e.message : "Request failed";
       if (/401|credentials|unauthor/i.test(msg)) {
         logout();
-        router.replace("/admin/login");
+        router.replace("/login");
         return null;
       }
-      showToast(msg);
+      showToast(msg, "danger");
       return null;
     }
   }
@@ -94,163 +127,247 @@ export default function AdminDashboardPage() {
   async function toggle(cfg: SearchConfig) {
     setBusyId(cfg.id);
     const fn = cfg.enabled ? admin.disableConfig : admin.enableConfig;
-    await guard(() => fn(cfg.id));
+    const res = await guard(() => fn(cfg.id));
+    if (res) showToast(cfg.enabled ? "Search disabled." : "Search enabled.", cfg.enabled ? "accent" : "success");
     await refresh();
     setBusyId(null);
   }
 
   async function runNow(cfg: SearchConfig) {
     setBusyId(cfg.id);
+    // guard() already surfaces API errors as a danger toast.
     const res = await guard(() => admin.runConfig(cfg.id));
-    if (res) showToast(`Run started for “${cfg.job_type}”`);
+    if (res) showToast("Search started. New jobs will appear in your feed.");
     setTimeout(refresh, 1500);
     setBusyId(null);
   }
 
   async function remove(cfg: SearchConfig) {
-    if (!confirm(`Delete search config “${cfg.job_type}”?`)) return;
-    setBusyId(cfg.id);
-    await guard(() => admin.deleteConfig(cfg.id));
+    setConfirmTarget(cfg);
+  }
+
+  async function confirmRemove() {
+    if (!confirmTarget) return;
+    setBusyId(confirmTarget.id);
+    await guard(() => admin.deleteConfig(confirmTarget.id));
+    showToast("Search deleted.");
+    setConfirmTarget(null);
     await refresh();
     setBusyId(null);
   }
 
-  function doLogout() {
-    logout();
-    router.replace("/admin/login");
-  }
+  /* Dashboard stats — computed from configs + today's runs. */
+  const activeCount = configs.filter((c) => c.enabled).length;
+  const pausedCount = configs.length - activeCount;
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const runsToday = runs.filter(
+    (r) => new Date(r.started_at).getTime() >= startOfDay.getTime(),
+  );
+  const jobsToday = runsToday.reduce((sum, r) => sum + (r.new_jobs_count || 0), 0);
+  const sourcesToday = new Set(runsToday.map((r) => r.source)).size;
+  const nextRun = configs
+    .filter((c) => c.enabled && c.next_run_at)
+    .map((c) => ({ cfg: c, at: new Date(c.next_run_at!).getTime() }))
+    .filter((x) => !Number.isNaN(x.at) && x.at > Date.now())
+    .sort((a, b) => a.at - b.at)[0];
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg px-4 pb-32 pt-6 md:max-w-4xl md:px-6 lg:max-w-none lg:px-8 lg:pb-14 xl:max-w-6xl">
-      <header className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-muted">
-            Dashboard
-          </p>
-          <h1 className="text-2xl font-bold">Admin</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {adminUser && (
-            <span className="glass-chip hidden max-w-40 truncate sm:inline-flex">
-              {adminUser.email}
-            </span>
-          )}
-          <ThemeToggle />
-          <button type="button" onClick={doLogout} className="btn-circle" aria-label="Log out">
-            <IconLogout />
-          </button>
-        </div>
-      </header>
+    <PageShell>
+      <TopBar title="Admin" backHref="/" />
 
       {loading ? (
-        <div className="space-y-3">
-          <div className="skeleton h-28 w-full" />
-          <div className="skeleton h-28 w-full" />
+        /* DASHBOARD · LOADING — two 112px skeletons hold the config grid */
+        <div className="flex flex-1 flex-col gap-5">
+          <p className="eyebrow">Dashboard</p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="card h-28" />
+            <div className="card h-28" />
+            <div className="card h-28" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="card flex h-28 flex-col items-start gap-3.5 p-5">
+              <div className="skeleton h-4 w-full shrink-0 rounded-[5px]" />
+              <div className="skeleton h-3 w-[140px] shrink-0 rounded-[5px]" />
+              <div className="skeleton h-3 w-[100px] shrink-0 rounded-[5px]" />
+            </div>
+            <div className="card flex h-28 flex-col items-start gap-3.5 p-5">
+              <div className="skeleton h-4 w-full shrink-0 rounded-[5px]" />
+              <div className="skeleton h-3 w-[140px] shrink-0 rounded-[5px]" />
+              <div className="skeleton h-3 w-[100px] shrink-0 rounded-[5px]" />
+            </div>
+          </div>
         </div>
       ) : error ? (
-        <div className="glass p-6 text-center">
-          <p className="font-medium text-rose">Couldn’t load dashboard</p>
-          <p className="mt-1 text-sm text-muted">{error}</p>
-          <button type="button" onClick={refresh} className="btn-primary mt-4">
-            Retry
+        /* DASHBOARD · ERROR */
+        <div className="card flex flex-col items-start gap-5 p-8">
+          <p className="text-[22px] font-semibold text-danger">
+            Couldn&apos;t load your dashboard
+          </p>
+          <p className="text-sm text-muted">
+            Search configurations are temporarily unavailable. Your saved
+            searches haven&apos;t changed.
+          </p>
+          <button type="button" onClick={refresh} className="btn-ghost">
+            <IconRefresh className="h-4 w-4 text-accent" /> Retry
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-1 flex-col gap-5">
+          {/* Eyebrow */}
+          <p className="eyebrow">Dashboard</p>
+
+          {/* Stat cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="card flex flex-col gap-2 p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Active searches
+              </p>
+              <div className="flex items-baseline gap-3">
+                <span className="text-[32px] font-semibold text-ink">
+                  {activeCount}
+                </span>
+                <span className="text-xs text-muted">
+                  {pausedCount === 0
+                    ? "All searches running"
+                    : `${pausedCount} search${pausedCount === 1 ? "" : "es"} paused`}
+                </span>
+              </div>
+            </div>
+            <div className="card flex flex-col gap-2 p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                New jobs today
+              </p>
+              <div className="flex items-baseline gap-3">
+                <span className="text-[32px] font-semibold text-ink">{jobsToday}</span>
+                <span className="text-xs text-muted">
+                  {sourcesToday === 0
+                    ? "No runs yet today"
+                    : `Across ${sourcesToday} registered source${sourcesToday === 1 ? "" : "s"}`}
+                </span>
+              </div>
+            </div>
+            <div className="card flex flex-col gap-2 p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Next scheduled run
+              </p>
+              <div className="flex items-baseline gap-3">
+                <span className="text-[32px] font-semibold text-ink">
+                  {nextRun ? until(new Date(nextRun.at).toISOString()) : "—"}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                  {nextRun ? nextRun.cfg.job_type : "No enabled searches"}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Search configs */}
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Search configs
-              </h2>
+          <section className="flex flex-col gap-[18px]">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[22px] font-semibold text-ink">Search configs</h2>
               <Link href="/admin/configs/new" className="btn-ghost">
-                <IconPlus className="h-4 w-4" /> New
+                <IconPlus className="h-4 w-4" /> New search
               </Link>
             </div>
 
             {configs.length === 0 ? (
-              <div className="glass flex flex-col items-center gap-3 p-8 text-center">
-                <span className="btn-circle h-14 w-14 animate-float text-accent">
-                  <IconSparkles className="h-6 w-6" />
+              /* DASHBOARD · EMPTY — circular icon + create call to action */
+              <div className="card flex flex-col items-center gap-4 p-8 text-center">
+                <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-white/90 bg-white shadow-accent dark:border-line dark:bg-surface">
+                  <IconSparkles className="h-[30px] w-[30px] text-accent" />
                 </span>
-                <p className="font-semibold">No search configs yet</p>
-                <p className="text-sm text-muted">
-                  Create one and the AI will fill in keywords, locations and schedule.
+                <p className="text-2xl font-semibold text-ink">
+                  No search configs yet
+                </p>
+                <p className="max-w-sm text-sm text-muted">
+                  Create your first search and let the right roles come to you.
                 </p>
                 <Link href="/admin/configs/new" className="btn-primary">
-                  <IconPlus /> Create search
+                  Create search
                 </Link>
               </div>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 {configs.map((cfg) => (
-                  <div key={cfg.id} className="glass min-w-0 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <Link
-                        href={`/admin/configs/${cfg.id}`}
-                        className="min-w-0 flex-1"
-                      >
-                        <h3 className="flex items-center gap-2 font-semibold">
-                          <StatusDot cfg={cfg} />
-                          <span className="min-w-0 truncate">{cfg.job_type}</span>
+                  <div key={cfg.id} className="card flex min-w-0 flex-col gap-4 p-6">
+                    <div className="flex items-start gap-3">
+                      <StatusDot cfg={cfg} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-[17px] font-semibold text-ink">
+                          {cfg.job_type}
                         </h3>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {cfg.cron_expression} · every {cfg.lookback_hours}h lookback
+                        <p className="mt-1 font-mono text-xs text-muted">
+                          {cfg.cron_expression}
                         </p>
-                      </Link>
+                      </div>
                       {cfg.ai_generated && (
-                        <span className="glass-chip shrink-0 text-accent">
-                          <IconSparkles className="h-3.5 w-3.5" /> AI
+                        <span className="chip chip-accent shrink-0">
+                          <IconSparkles className="h-3 w-3" /> AI
                         </span>
                       )}
+                      <Link
+                        href={`/admin/configs/${cfg.id}/edit`}
+                        className="icon-btn"
+                        aria-label="Edit search"
+                      >
+                        <IconPencil />
+                      </Link>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5">
                       {cfg.keywords.slice(0, 4).map((k) => (
-                        <span key={k} className="glass-chip">
+                        <span key={k} className="chip">
                           {k}
                         </span>
                       ))}
                       {cfg.keywords.length > 4 && (
-                        <span className="glass-chip">+{cfg.keywords.length - 4}</span>
+                        <span className="chip chip-accent">
+                          +{cfg.keywords.length - 4}
+                        </span>
                       )}
                     </div>
 
-                    {/* Buttons wrap instead of overflowing narrow phones */}
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => runNow(cfg)}
                         disabled={busyId === cfg.id}
-                        className="btn-ghost min-w-32 flex-1 disabled:opacity-60"
+                        className="btn-ghost min-w-32 flex-1 gap-1.5 disabled:opacity-60"
                       >
-                        <IconPlay /> Run now
+                        <IconPlay className="h-4 w-4 text-accent" /> Run now
                       </button>
                       <button
                         type="button"
                         onClick={() => toggle(cfg)}
                         disabled={busyId === cfg.id}
-                        className={`btn-ghost min-w-24 disabled:opacity-60 ${cfg.enabled ? "text-mint" : ""}`}
+                        className={`min-w-32 flex-1 disabled:opacity-60 ${
+                          cfg.enabled ? "btn-success gap-1.5" : "btn-ghost"
+                        }`}
                       >
-                        {cfg.enabled ? "Enabled" : "Disabled"}
+                        {cfg.enabled ? (
+                          <>
+                            <IconPause className="h-4 w-4" /> Enabled
+                          </>
+                        ) : (
+                          "Disabled"
+                        )}
                       </button>
                       <button
                         type="button"
                         onClick={() => remove(cfg)}
                         disabled={busyId === cfg.id}
-                        className="btn-circle h-10 w-10 text-rose disabled:opacity-60"
+                        className="icon-btn-danger"
                         aria-label="Delete config"
                       >
                         <IconTrash />
                       </button>
                     </div>
 
-                    {cfg.last_run_at && (
-                      <p className="mt-2 text-[11px] text-muted">
-                        Last run {timeAgo(cfg.last_run_at)}
-                        {cfg.next_run_at ? ` · next ${timeAgo(cfg.next_run_at)}` : ""}
-                      </p>
-                    )}
+                    <p className="text-[11px] text-muted">
+                      {cfg.last_run_at ? `Last run ${timeAgo(cfg.last_run_at)}` : "Never run"}
+                      {cfg.next_run_at ? ` · next run in ${until(cfg.next_run_at)}` : ""}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -258,40 +375,38 @@ export default function AdminDashboardPage() {
           </section>
 
           {/* Recent runs */}
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-              Recent runs
-            </h2>
+          <section className="flex flex-col gap-[18px]">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-[22px] font-semibold text-ink">Recent runs</h2>
+              <span className="text-xs text-muted">Latest activity</span>
+            </div>
             {runs.length === 0 ? (
-              <div className="glass p-5 text-center text-sm text-muted">
+              <div className="card p-6 text-center text-sm text-muted">
                 No runs recorded yet.
               </div>
             ) : (
-              <div className="glass divide-y divide-white/60 p-1 dark:divide-white/10">
+              <div className="card divide-y divide-line/60 p-2">
                 {runs.slice(0, 12).map((run) => (
-                  <div key={run.id} className="flex items-center gap-3 px-4 py-3">
+                  <div key={run.id} className="flex items-center gap-3.5 px-4 py-4">
                     <span
-                      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
+                      className={`inline-block h-[7px] w-[7px] shrink-0 rounded-full ${
                         run.status === "success"
-                          ? "bg-mint"
+                          ? "bg-success"
                           : run.status === "failed"
-                            ? "bg-rose"
-                            : "bg-peach"
+                            ? "bg-danger"
+                            : "bg-warning"
                       }`}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium capitalize">
-                        {run.source} · {run.status}
+                      <p className="truncate text-[13px] font-medium capitalize text-ink">
+                        {run.source} · {run.status.replace("_", " ")}
                       </p>
-                      <p className="text-[11px] text-muted">
-                        {timeAgo(run.started_at)} · {run.raw_count} raw → {run.new_jobs_count} new
+                      <p className="mt-0.5 text-[11px] text-muted">
+                        {timeAgo(run.started_at)} · {run.raw_count} raw →{" "}
+                        {run.new_jobs_count} new
                       </p>
                     </div>
-                    {run.error && (
-                      <span className="glass-chip max-w-28 truncate text-rose">
-                        {run.error}
-                      </span>
-                    )}
+                    <RunStatusChip run={run} />
                   </div>
                 ))}
               </div>
@@ -300,21 +415,31 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Toast */}
+      {/* Action toasts — short-lived feedback */}
       {toast && (
-        <div className="fixed inset-x-0 bottom-28 z-50 flex justify-center px-4 lg:bottom-8">
-          <div className="glass px-5 py-3 text-sm font-medium text-ink shadow-glow">
-            {toast}
-          </div>
-        </div>
+        <Toast tone={toast.tone}>{toast.msg}</Toast>
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        tone="danger"
+        icon={<IconTrash className="h-6 w-6" />}
+        title="Delete this search?"
+        body={`“${confirmTarget?.job_type ?? ""}” will stop running and its saved results stay in the feed. This action cannot be undone.`}
+        confirmLabel="Delete search"
+        busy={busyId !== null}
+        onConfirm={confirmRemove}
+        onCancel={() => setConfirmTarget(null)}
+      />
 
       <BottomNav
         items={[
           { href: "/", label: "Jobs", icon: <IconBriefcase /> },
           { href: "/admin", label: "Admin", icon: <IconGauge />, active: true },
+          { href: "/admin/profile", label: "Account", icon: <IconUser /> },
         ]}
       />
-    </div>
+    </PageShell>
   );
 }
