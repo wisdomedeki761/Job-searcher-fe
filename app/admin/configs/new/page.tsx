@@ -1,19 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { IconArrowLeft } from "@/components/icons";
 import ConfigForm from "@/components/ConfigForm";
+import ConfigRail from "@/components/ConfigRail";
+import PageShell from "@/components/PageShell";
+import TopBar from "@/components/TopBar";
 
 export default function NewConfigPage() {
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-lg px-4 pb-16 pt-6 md:max-w-2xl lg:max-w-3xl lg:px-8">
-      <header className="mb-5 flex items-center gap-3">
-        <Link href="/admin" className="btn-circle" aria-label="Back">
-          <IconArrowLeft />
-        </Link>
-        <h1 className="text-xl font-bold">New search</h1>
-      </header>
-      <ConfigForm />
-    </div>
+    <PageShell>
+      <TopBar title="New search" backHref="/admin" />
+      <div className="grid gap-6 lg:grid-cols-[344px_minmax(0,1fr)] lg:items-start lg:gap-14">
+        <ConfigRail
+          eyebrow="Configuration · New search"
+          title="Give your search a sharper signal."
+        />
+        <ConfigForm />
+      </div>
+    </PageShell>
   );
 }

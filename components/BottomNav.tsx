@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 /**
- * Floating glass bottom navigation, mobile-first (fixed to bottom on small
- * screens — hidden on desktop where the Sidebar takes over). Items are passed
+ * Floating mobile navigation, kept only for small screens until the mobile
+ * designs arrive — on desktop the pill TopBar takes over. Items are passed
  * in so each page tailors the destinations.
  */
 export interface NavItem {
@@ -15,7 +15,7 @@ export interface NavItem {
 export default function BottomNav({ items }: { items: NavItem[] }) {
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
-      <div className="glass pointer-events-auto flex w-full max-w-md items-center justify-around gap-1 px-2 py-2">
+      <div className="card pointer-events-auto flex w-full max-w-md items-center justify-around gap-1 px-2 py-2">
         {items.map((item) => (
           <Link
             key={item.href}
@@ -28,7 +28,7 @@ export default function BottomNav({ items }: { items: NavItem[] }) {
           >
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
-                item.active ? "bg-accent/15 shadow-glow" : ""
+                item.active ? "bg-accent-soft" : ""
               }`}
             >
               {item.icon}

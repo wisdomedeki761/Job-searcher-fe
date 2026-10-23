@@ -1,65 +1,60 @@
 import Link from "next/link";
-import { IconMapPin, IconClock, IconExternal } from "./icons";
+import { IconMapPin, IconClock, IconSparkles } from "./icons";
 import { timeAgo, labelize, workModeTint } from "@/lib/format";
 import type { Job } from "@/lib/api";
 
+/** First letter of the company, used for the avatar tile. */
+function initial(name?: string): string {
+  return (name || "?").trim().charAt(0).toUpperCase();
+}
+
 /**
- * Job card: glass panel with neumorphic accents. Title/company link to the
- * detail page; the apply/source link opens externally.
+ * Job card from the feed export: avatar tile + company + source chip, title,
+ * work-mode/employment chips, then location and age.
  */
 export default function JobCard({ job }: { job: Job }) {
   return (
-    <article className="glass min-w-0 animate-slide-up p-4 transition active:scale-[0.99]">
-      <div className="flex items-start justify-between gap-3">
-        <Link href={`/jobs/${job.id}`} className="min-w-0 flex-1">
-          <h3 className="truncate text-[15px] font-semibold leading-tight text-ink">
-            {job.job_title || "Untitled role"}
-          </h3>
-          <p className="mt-0.5 truncate text-sm text-muted">
-            {job.company_name || "Unknown company"}
-          </p>
-        </Link>
-        <span className="glass-chip shrink-0 capitalize">{job.source}</span>
+    <Link
+      href={`/jobs/${job.id}`}
+      className="card animate-slide-up flex min-h-[210px] min-w-0 flex-col gap-[18px] p-[22px] transition active:scale-[0.99]"
+    >
+      <div className="flex items-center gap-2">
+        <span className="avatar h-7 w-7">{initial(job.company_name)}</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted">
+          {job.company_name || "Unknown company"}
+        </span>
+        <span className="chip shrink-0 capitalize">{job.source}</span>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
-        {job.location && (
-          <span className="inline-flex items-center gap-1">
-            <IconMapPin className="h-3.5 w-3.5" />
-            <span className="max-w-40 truncate">{job.location}</span>
-          </span>
-        )}
-        {job.posted_at && (
-          <span className="inline-flex items-center gap-1">
-            <IconClock className="h-3.5 w-3.5" />
-            {timeAgo(job.posted_at)}
-          </span>
-        )}
-      </div>
+      <h3 className="line-clamp-2 text-[17px] font-semibold leading-snug text-ink">
+        {job.job_title || "Untitled role"}
+      </h3>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {job.work_mode && (
-          <span className={`glass-chip capitalize ${workModeTint(job.work_mode)}`}>
+          <span className={`chip capitalize ${workModeTint(job.work_mode)}`}>
             {labelize(job.work_mode)}
           </span>
         )}
         {job.employment_type && job.employment_type !== "any" && (
-          <span className="glass-chip capitalize">{labelize(job.employment_type)}</span>
+          <span className="chip capitalize">{labelize(job.employment_type)}</span>
         )}
         {typeof job.ai_confidence === "number" && (
-          <span className="glass-chip text-accent">
-            AI {Math.round(job.ai_confidence * 100)}%
+          <span className="chip chip-accent">
+            <IconSparkles className="h-3 w-3" />
+            AI match {Math.round(job.ai_confidence * 100)}%
           </span>
         )}
-        <span className="flex-1" />
-        <Link
-          href={`/jobs/${job.id}`}
-          className="btn-circle h-9 w-9"
-          aria-label="Open job"
-        >
-          <IconExternal className="h-4 w-4" />
-        </Link>
       </div>
-    </article>
+
+      <div className="mt-auto flex items-center gap-[7px] text-[11px] text-muted">
+        <IconMapPin className="h-[13px] w-[13px]" />
+        <span className="min-w-0 flex-1 truncate">
+          {job.location || "Anywhere"}
+        </span>
+        <IconClock className="h-[13px] w-[13px]" />
+        <span className="shrink-0">{timeAgo(job.posted_at || job.first_seen_at)}</span>
+      </div>
+    </Link>
   );
 }
