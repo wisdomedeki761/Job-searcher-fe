@@ -19,6 +19,7 @@ import {
 } from "@/components/icons";
 import {
   fetchJobs,
+  fetchJobTypes,
   fetchMe,
   getStoredAdmin,
   getToken,
@@ -60,6 +61,9 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [q, setQ] = useState("");
+  const [jobType, setJobType] = useState("");
+  const [jobTypes, setJobTypes] = useState<string[]>([]);
+  const [jobTypesError, setJobTypesError] = useState<string | null>(null);
   const [workMode, setWorkMode] = useState("");
   const [employment, setEmployment] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -79,6 +83,13 @@ export default function HomePage() {
       return;
     }
     setMe(getStoredAdmin());
+    fetchJobTypes()
+      .then(setJobTypes)
+      .catch((e) =>
+        setJobTypesError(
+          e instanceof Error ? e.message : "Couldn't load job types",
+        ),
+      );
     fetchMe()
       .then(setMe)
       .catch(() => {
@@ -108,6 +119,7 @@ export default function HomePage() {
         const start = reset ? 0 : offset;
         const data = await fetchJobs({
           q: q.trim() || undefined,
+          job_type: jobType || undefined,
           work_mode: workMode || undefined,
           employment_type: employment || undefined,
           limit: LIMIT,
@@ -136,7 +148,7 @@ export default function HomePage() {
         }
       }
     },
-    [q, workMode, employment, offset, router],
+    [q, jobType, workMode, employment, offset, router],
   );
 
   useEffect(() => {
@@ -158,9 +170,10 @@ export default function HomePage() {
     const t = setTimeout(() => load(true), q ? 350 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, workMode, employment]);
+  }, [q, jobType, workMode, employment]);
 
-  const activeFilters = (workMode ? 1 : 0) + (employment ? 1 : 0);
+  const activeFilters =
+    (jobType ? 1 : 0) + (workMode ? 1 : 0) + (employment ? 1 : 0);
 
   return (
     <PageShell>
@@ -224,6 +237,32 @@ export default function HomePage() {
       {showFilters && (
         <div className="card flex flex-col gap-3.5 p-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label
+              htmlFor="jobTypeFilter"
+              className="w-24 shrink-0 text-xs font-semibold text-ink"
+            >
+              Job type
+            </label>
+            <select
+              id="jobTypeFilter"
+              value={jobType}
+              onChange={(e) => setJobType(e.target.value)}
+              className="field min-w-0 flex-1 py-2"
+            >
+              <option value="">All job types</option>
+              {jobTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            {jobTypesError && (
+              <span role="alert" className="text-xs text-danger">
+                {jobTypesError}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="w-24 shrink-0 text-xs font-semibold text-ink">
               Work mode
             </span>
@@ -251,6 +290,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => {
+                setJobType("");
                 setWorkMode("");
                 setEmployment("");
               }}
@@ -286,7 +326,7 @@ export default function HomePage() {
         ) : jobs.length === 0 ? (
           /* JOB FEED · EMPTY — circular icon, centered copy, clear filters */
           <div className="card flex flex-col items-center gap-4 p-8 text-center">
-            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-white/90 bg-white shadow-accent dark:border-line dark:bg-surface">
+            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-surface shadow-accent">
               <IconBriefcase className="h-[30px] w-[30px] text-accent" />
             </span>
             <p className="text-[23px] font-semibold text-ink">No jobs found</p>
@@ -298,6 +338,7 @@ export default function HomePage() {
               type="button"
               onClick={() => {
                 setQ("");
+                setJobType("");
                 setWorkMode("");
                 setEmployment("");
               }}

@@ -287,6 +287,7 @@ export default function ConfigForm({ configId }: { configId?: string }) {
     setError(null);
     try {
       const p: AIProfile = await admin.enrich(jobType.trim());
+      if (p.job_type?.trim()) setJobType(p.job_type.trim());
       setKeywords(p.keywords ?? []);
       setExclude(p.exclude_keywords ?? []);
       setLocations(p.locations ?? []);
