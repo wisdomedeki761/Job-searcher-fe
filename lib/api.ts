@@ -62,6 +62,7 @@ export interface SearchRun {
 }
 
 export interface AIProfile {
+  job_type: string;
   keywords: string[];
   exclude_keywords: string[];
   locations: string[];
@@ -75,6 +76,7 @@ export interface AIProfile {
 export interface JobFilter {
   q?: string;
   location?: string;
+  job_type?: string;
   work_mode?: string;
   employment_type?: string;
   source?: string;
@@ -126,6 +128,11 @@ async function authedFetch<T>(path: string): Promise<T> {
 
 export async function fetchJobs(filter: JobFilter): Promise<Job[]> {
   const data = await authedFetch<Job[] | null>(`/api/jobs${qs(filter)}`);
+  return data ?? [];
+}
+
+export async function fetchJobTypes(): Promise<string[]> {
+  const data = await authedFetch<string[] | null>("/api/job-types");
   return data ?? [];
 }
 

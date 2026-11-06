@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import i18nCountries from "i18n-iso-countries";
+import englishCountryNames from "i18n-iso-countries/langs/en.json";
 import Alert from "@/components/Alert";
 import {
   IconCheck,
@@ -24,10 +25,25 @@ import {
 const EMPLOYMENT = ["any", "full_time", "part_time", "contract", "internship"];
 const WORK_MODE = ["any", "remote", "hybrid", "onsite"];
 
+i18nCountries.registerLocale(englishCountryNames);
+
 /** Every country in the world (English names), sorted alphabetically. */
 const COUNTRIES = Object.values(i18nCountries.getNames("en")).sort((a, b) =>
   a.localeCompare(b),
 );
+
+function cronForHours(hours: number): string {
+  if (hours === 1) return "0 * * * *";
+  if (hours === 24) return "0 0 * * *";
+  return `0 */${hours} * * *`;
+}
+
+function hoursForCron(expression: string): string {
+  if (expression === "0 * * * *") return "1";
+  if (expression === "0 0 * * *") return "24";
+  const match = expression.match(/^0 \*\/(2[0-3]|1[0-9]|[2-9]) \* \* \*$/);
+  return match?.[1] ?? "";
+}
 
 /** Editable chip-list input: chips live inside the well, type + Enter/comma. */
 function TagsInput({
@@ -271,6 +287,7 @@ export default function ConfigForm({ configId }: { configId?: string }) {
     setError(null);
     try {
       const p: AIProfile = await admin.enrich(jobType.trim());
+      if (p.job_type?.trim()) setJobType(p.job_type.trim());
       setKeywords(p.keywords ?? []);
       setExclude(p.exclude_keywords ?? []);
       setLocations(p.locations ?? []);
@@ -278,7 +295,10 @@ export default function ConfigForm({ configId }: { configId?: string }) {
       setWorkMode(p.work_mode || "any");
       if (p.sources?.length) setSources(p.sources);
       if (p.lookback_hours) setLookback(p.lookback_hours);
-      if (p.suggested_cron && !cron) setCron(p.suggested_cron);
+      if (p.suggested_cron && !cron) {
+        const suggestedHours = hoursForCron(p.suggested_cron);
+        if (suggestedHours) setCron(p.suggested_cron);
+      }
       setAiGenerated(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "AI enrichment failed");
@@ -431,15 +451,29 @@ export default function ConfigForm({ configId }: { configId?: string }) {
               <label htmlFor="cron" className="label">
                 Cron schedule
               </label>
-              <input
+              <select
                 id="cron"
-                value={cron}
-                onChange={(e) => setCron(e.target.value)}
-                placeholder="0 */6 * * *"
+                value={hoursForCron(cron) || (cron ? "custom" : "")}
+                onChange={(e) => {
+                  if (e.target.value === "custom") return;
+                  setCron(e.target.value ? cronForHours(Number(e.target.value)) : "");
+                }}
                 required
-                className="field mt-2 font-mono"
-              />
-              <p className="hint mt-1.5">e.g. every 6 hours</p>
+                className="field mt-2"
+              >
+                <option value="" disabled>
+                  Select an interval
+                </option>
+                {Array.from({ length: 24 }, (_, index) => index + 1).map((hours) => (
+                  <option key={hours} value={String(hours)}>
+                    Every {hours} {hours === 1 ? "hour" : "hours"}
+                  </option>
+                ))}
+                {cron && !hoursForCron(cron) && (
+                  <option value="custom">Current custom schedule ({cron})</option>
+                )}
+              </select>
+              <p className="hint mt-1.5">Runs every 1 to 24 hours</p>
             </div>
             <div>
               <label htmlFor="lookback" className="label">
