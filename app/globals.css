@@ -51,7 +51,7 @@
     rgba(98, 83, 232, 0.17) 2.5%,
     rgba(217, 209, 251, 0) 100%
   );
-  --page: linear-gradient(180deg, #f1f2fd 0%, #eaf1f7 52%, #f6eef4 100%);
+  --page: #eceae8;
 
   /* ---- decorative blobs ---- */
   --blob-a: rgba(173, 165, 248, 0.27); /* violet, top-right */
@@ -84,7 +84,7 @@
   --card-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.28);
   --accent-shadow: 0 10px 24px 0 rgba(96, 84, 211, 0.35);
   --topbar: rgba(35, 39, 61, 0.8);
-  --page: linear-gradient(0deg, #040308 0%, #141220 50.48%, #171523 100%);
+  --page: #050505;
 
   /* ---- decorative blobs ---- */
   --blob-a: #353057; /* solid violet-grey shape, top-right */
@@ -103,13 +103,12 @@ body {
 
 body {
   @apply text-ink antialiased;
-  background-color: #f1f2fd;
-  background-image: var(--page);
+  background-color: var(--page);
   background-attachment: fixed;
 }
 
 .dark body {
-  background-color: #141220;
+  background-color: var(--page);
 }
 
 /* Hide scrollbars for horizontal chip rails */
@@ -119,6 +118,25 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Crossfade the login hero's light and dark videos when the theme changes. */
+.crossfade-20 {
+  transition: opacity 800ms ease-in-out;
+}
+
+.login-hero-video {
+  mask-image: radial-gradient(ellipse 95% 98% at center, #000 80%, transparent 100%);
+}
+
+@media (min-width: 1280px) {
+  .login-page .page-blob-top {
+    right: -350px;
+  }
+
+  .login-page .page-blob-bottom {
+    left: -510px;
+  }
 }
 
 /* ---------- components ---------- */
@@ -199,11 +217,6 @@ body {
     @apply relative flex min-h-[55px] w-full flex-wrap items-center gap-3 rounded-[25px] px-3 py-2;
     background: var(--topbar);
   }
-  .dark .topbar {
-    @apply border;
-    border-color: rgb(var(--c-line));
-  }
-
   /* Chips — neutral by default, tinted variants */
   .chip {
     @apply inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-lg px-[9px] py-[5px] text-[11px] font-medium;
@@ -283,7 +296,7 @@ body {
 
   /* Login hero card — violet wash (dark mode swaps it for a surface) */
   .login-card {
-    @apply rounded-[28px] border-[1.5px] border-transparent shadow-card;
+    @apply rounded-[28px] shadow-card;
     background: linear-gradient(
       212deg,
       rgba(164, 159, 215, 0.46) -12.13%,
@@ -292,7 +305,6 @@ body {
   }
   .dark .login-card {
     background: var(--surface);
-    border-color: rgb(var(--c-line));
   }
 
   /* Success panel (credentials, invites) */
