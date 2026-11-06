@@ -274,7 +274,7 @@ export default function AdminDashboardPage() {
             {configs.length === 0 ? (
               /* DASHBOARD · EMPTY — circular icon + create call to action */
               <div className="card flex flex-col items-center gap-4 p-8 text-center">
-                <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-white/90 bg-white shadow-accent dark:border-line dark:bg-surface">
+                <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-surface shadow-accent">
                   <IconSparkles className="h-[30px] w-[30px] text-accent" />
                 </span>
                 <p className="text-2xl font-semibold text-ink">

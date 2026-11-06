@@ -38,13 +38,18 @@
   --c-danger-bg: 251 230 237; /* #FBE6ED */
 
   /* ---- surfaces (opacity baked in) ---- */
-  --surface: rgba(255, 255, 255, 0.72); /* glass card */
-  --surface-border: rgba(255, 255, 255, 0.9); /* card + icon-button border */
-  --field: rgba(243, 245, 251, 0.75); /* inputs + neutral chips */
-  --field-strong: rgba(255, 255, 255, 0.58); /* search input */
+  --surface: rgba(236, 234, 232, 0.82); /* blended glass card */
+  --card-surface: linear-gradient(
+    212deg,
+    rgba(33, 43, 33, 0) -12.13%,
+    rgba(248, 244, 244, 0.34) 35.65%
+  );
+  --surface-border: rgba(236, 234, 232, 0.82);
+  --field: rgba(236, 234, 232, 0.72); /* inputs + neutral chips */
+  --field-strong: rgba(236, 234, 232, 0.72); /* search input */
 
   /* ---- shadows & gradients ---- */
-  --card-shadow: 0 12px 36px 0 rgba(52, 54, 90, 0.04);
+  --card-shadow: 0 12px 36px 0 rgba(52, 54, 90, 0.07);
   --accent-shadow: 0 10px 24px 0 rgba(96, 84, 211, 0.18);
   --topbar: linear-gradient(
     0deg,
@@ -58,8 +63,8 @@
   --blob-b: rgba(178, 231, 219, 0.19); /* mint, bottom-left */
 
   /* ---- accents per surface ---- */
-  --avatar: #ffffff; /* feed company avatar tile */
-  --search-tile: #ebe8ff; /* feed filter button */
+  --avatar: #ffffff00; /* feed company avatar tile */
+  --search-tile: #ebe8ff00; /* feed filter button */
 }
 
 .dark {
@@ -76,6 +81,7 @@
 
   /* ---- surfaces ---- */
   --surface: rgba(35, 39, 61, 0.8); /* #23273D @ 80% */
+  --card-surface: var(--surface);
   --surface-border: #3a405d; /* #3A405D */
   --field: rgba(21, 26, 48, 0.67); /* #151A30 @ 67% */
   --field-strong: rgba(21, 26, 48, 0.67);
@@ -143,28 +149,26 @@ body {
 @layer components {
   /* Glass surface card — every panel in the design */
   .card {
-    @apply rounded-[20px] border shadow-card;
-    background: var(--surface);
-    border-color: var(--surface-border);
+    @apply rounded-[20px] shadow-card;
+    background: var(--card-surface);
+  }
+
+  .bg-surface {
+    background: var(--card-surface);
   }
 
   /* Text input / select well */
   .field {
-    @apply w-full rounded-xl border px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-placeholder focus:ring-2 focus:ring-accent/40;
+    @apply w-full rounded-xl border-0 px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-placeholder focus:ring-2 focus:ring-accent/40;
     min-height: 48px;
     background: var(--field);
-    border-color: rgb(var(--c-line));
   }
 
   /* Search input on the feed (lighter tile) */
   .search-field {
-    @apply w-full rounded-xl border px-4 text-[13px] text-ink outline-none transition placeholder:text-muted focus:ring-2 focus:ring-accent/40;
+    @apply w-full rounded-xl border-0 px-4 text-[13px] text-ink outline-none transition placeholder:text-muted focus:ring-2 focus:ring-accent/40;
     height: 52px;
     background: var(--field-strong);
-    border-color: var(--surface-border);
-  }
-  .dark .search-field {
-    border-color: rgb(var(--c-line));
   }
 
   /* Buttons */
@@ -175,32 +179,26 @@ body {
     @apply btn bg-accent text-white hover:brightness-105 disabled:opacity-[0.55];
   }
   .btn-ghost {
-    @apply btn border bg-surface text-ink hover:bg-white/90 disabled:opacity-[0.55];
-    border-color: rgb(var(--c-line));
+    @apply btn bg-surface text-ink hover:brightness-95 disabled:opacity-[0.55];
+    background: var(--card-surface);
   }
   .dark .btn-ghost:hover {
     background: rgba(35, 39, 61, 1);
   }
   .btn-success {
-    @apply btn border text-success disabled:opacity-[0.55];
+    @apply btn text-success disabled:opacity-[0.55];
     background: #ddf4e9;
-    border-color: rgb(var(--c-line));
   }
   /* Soft destructive button (delete confirmations) */
   .btn-danger-soft {
-    @apply btn border text-danger disabled:opacity-[0.55];
+    @apply btn text-danger disabled:opacity-[0.55];
     background: #fbe6ed;
-    border-color: rgb(var(--c-line));
   }
 
   /* Square icon button (40×40) */
   .icon-btn {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-muted transition hover:text-ink;
-    background: var(--surface);
-    border-color: var(--surface-border);
-  }
-  .dark .icon-btn {
-    border-color: rgb(var(--c-line));
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted transition hover:text-ink;
+    background: var(--card-surface);
   }
   .icon-btn-danger {
     @apply icon-btn text-danger;
@@ -297,19 +295,12 @@ body {
   /* Login hero card — violet wash (dark mode swaps it for a surface) */
   .login-card {
     @apply rounded-[28px] shadow-card;
-    background: linear-gradient(
-      212deg,
-      rgba(164, 159, 215, 0.46) -12.13%,
-      rgba(211, 203, 247, 0.34) 35.65%
-    );
-  }
-  .dark .login-card {
-    background: var(--surface);
+    background: var(--card-surface);
   }
 
   /* Success panel (credentials, invites) */
   .panel-success {
-    @apply border shadow-card;
+    @apply shadow-card;
     background: rgba(245, 255, 250, 0.67);
     border-color: #addac5;
   }
