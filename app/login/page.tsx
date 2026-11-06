@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { IconAlertCircle, IconRefresh, IconSparkles } from "@/components/icons";
+import { IconAlertCircle, IconRefresh } from "@/components/icons";
 import PageShell from "@/components/PageShell";
 import ThemeToggle from "@/components/ThemeToggle";
 import { getToken, login } from "@/lib/api";
 
 /**
  * The whole app is private: every page (job feed included) sits behind this
- * login. Desktop follows the split export — hero image left, violet-washed
+ * login. Desktop follows the split export — themed hero video left, violet-washed
  * sign-in card right; on small screens only the card shows.
  */
 export default function LoginPage() {
@@ -44,7 +43,7 @@ export default function LoginPage() {
   }
 
   return (
-    <PageShell footer={false}>
+    <PageShell footer={false} className="login-page">
       {/* Top bar: centered QX wordmark + theme toggle */}
       <header className="topbar justify-center">
         <span className="text-3xl font-bold text-accent">QX</span>
@@ -54,15 +53,25 @@ export default function LoginPage() {
       </header>
 
       <div className="flex flex-1 items-center justify-center gap-14 py-4">
-        {/* Hero image — desktop only */}
+        {/* Theme-specific looping hero videos — desktop only */}
         <div className="relative hidden h-[640px] w-[512px] shrink-0 overflow-hidden rounded-[25px] xl:block xl:h-[720px] xl:w-[576px]">
-          <Image
-            src="/give_me_this_mage_precisely_2K_20261023064136.jpg"
-            alt=""
-            fill
-            sizes="576px"
-            className="object-cover"
-            priority
+          <video
+            src="/light-mode.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-hidden="true"
+            className="login-hero-video crossfade-20 absolute inset-0 h-full w-full object-contain dark:opacity-0"
+          />
+          <video
+            src="/dark-mode.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-hidden="true"
+            className="login-hero-video crossfade-20 absolute inset-0 h-full w-full object-contain opacity-0 dark:opacity-100"
           />
         </div>
 
@@ -82,10 +91,6 @@ export default function LoginPage() {
 
           {/* Sign-in card */}
           <div className="login-card flex w-full flex-col items-start gap-7 p-8 lg:p-10">
-            <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-white/90 bg-white/72 shadow-accent">
-              <IconSparkles className="h-7 w-7 text-accent" />
-            </div>
-
             <div className="w-full text-center">
               <h1 className="text-[30px] font-semibold text-ink">Sign in</h1>
               <p className="mt-1.5 text-sm text-muted">

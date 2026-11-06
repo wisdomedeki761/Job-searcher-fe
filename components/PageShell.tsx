@@ -8,22 +8,24 @@ import { IconHeart } from "./icons";
 export default function PageShell({
   children,
   footer = true,
+  className = "",
 }: {
   children: React.ReactNode;
   /** "Made with love by Qx dev" strip (hidden on the login screen). */
   footer?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="relative flex min-h-dvh w-full flex-col overflow-hidden">
+    <div className={`page-shell relative flex min-h-dvh w-full flex-col overflow-hidden ${className}`}>
       {/* Decorative blobs (violet top-right, mint bottom-left) */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-[187px] -top-[180px] h-[640px] w-[936px] rounded-full opacity-70 dark:h-[454px] dark:w-[699px] dark:opacity-100"
+        className="page-blob page-blob-top pointer-events-none absolute -right-[187px] -top-[180px] h-[640px] w-[936px] rounded-full opacity-70 dark:h-[454px] dark:w-[699px] dark:opacity-100"
         style={{ background: "var(--blob-a)" }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-[104px] -left-[180px] h-[600px] w-[600px] rounded-full dark:hidden"
+        className="page-blob page-blob-bottom pointer-events-none absolute -bottom-[104px] -left-[180px] h-[600px] w-[600px] rounded-full dark:hidden"
         style={{ background: "var(--blob-b)" }}
       />
 
